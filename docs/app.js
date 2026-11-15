@@ -35,6 +35,8 @@
   }
 
   const norm = s => s.trim().replace(/\s+/g, " ").toLowerCase();
+  // 2026-11-16 규칙 변경: YYYY/MM/DD 는 읽을 수 있는 날짜로 보고 YYYY-MM-DD 로 맞춘다 (#8 손 정답 25행)
+  const fixDate = s => /^\d{4}\/\d{2}\/\d{2}$/.test(s) ? s.replace(/\//g, "-") : s;
 
   function why(r) {
     if (!r.항목명.trim() || !r.예정일 || !r.마감월) return "필수 칸 빈칸";
@@ -58,7 +60,8 @@
 
   function process(raw, today) {
     const excluded = [], dup = [], keep = new Map();
-    for (const r of raw) {
+    for (const r0 of raw) {
+      const r = { ...r0, 예정일: fixDate(r0.예정일), 결과물등록일: fixDate(r0.결과물등록일) };
       const w = why(r);
       if (w) { excluded.push({ ...r, 이유: w }); continue; }
       const key = norm(r.항목명) + "|" + r.마감월;
