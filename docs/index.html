@@ -5,21 +5,101 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>월 결산 현황판 — 주경야독 2026</title>
 <style>
-:root{--bg:#f7f8fa;--ink:#1d2330;--sub:#5b6474;--card:#fff;--line:#e3e6eb}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--ink:#e8ebf0;--sub:#9aa3b2;--card:#1c2028;--line:#2b313c}}
-:root[data-theme="dark"]{--bg:#14171d;--ink:#e8ebf0;--sub:#9aa3b2;--card:#1c2028;--line:#2b313c}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif}
-main{max-width:720px;margin:0 auto;padding:48px 16px}
-h1{font-size:28px;margin:0 0 8px}
-p{color:var(--sub);margin:0 0 24px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px}
+:root{--bg:#f7f8fa;--ink:#1d2330;--sub:#5b6474;--card:#fff;--line:#e3e6eb;
+  --late:#c0392b;--late-bg:#fdecea;--doing:#1d5fa8;--doing-bg:#e8f0fb;--done:#1e7a4d;--done-bg:#e7f5ee}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171d;--ink:#e8ebf0;--sub:#9aa3b2;--card:#1c2028;--line:#2b313c;
+  --late:#ff8a7a;--late-bg:#3a1f1c;--doing:#8ab8ff;--doing-bg:#1b2a40;--done:#6fd3a0;--done-bg:#17302a}}
+:root[data-theme="dark"]{--bg:#14171d;--ink:#e8ebf0;--sub:#9aa3b2;--card:#1c2028;--line:#2b313c;
+  --late:#ff8a7a;--late-bg:#3a1f1c;--doing:#8ab8ff;--doing-bg:#1b2a40;--done:#6fd3a0;--done-bg:#17302a}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif}
+main{max-width:860px;margin:0 auto;padding:40px 16px}
+h1{font-size:26px;margin:0 0 4px}
+.lead{color:var(--sub);margin:0 0 20px}
+.flow{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-weight:600;margin-bottom:12px}
+.flow small{display:block;font-weight:400;color:var(--sub)}
+.kpi{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.kpi span{padding:4px 12px;border-radius:999px;font-weight:600}
+.s-지연{color:var(--late);background:var(--late-bg)}.s-진행{color:var(--doing);background:var(--doing-bg)}.s-완료{color:var(--done);background:var(--done-bg)}
+.wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:13px;color:var(--sub);font-weight:600}
+td .tag{padding:2px 8px;border-radius:6px;font-size:13px;font-weight:600}
+details{margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+summary{cursor:pointer;font-weight:600}
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:16px 0}
+button,label.btn{font:inherit;padding:6px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+#check{font-weight:600}
 </style>
 </head>
 <body>
 <main>
 <h1>월 결산 현황판</h1>
-<p>결산 일정과 항목별 완료 여부를 한 화면에서 보는 개인 학습 사이트 · 가상 회사 · 합성 데이터 사용</p>
-<div class="card">준비 중 — Sprint 2에서 지어낸 결산 일정 10~30건을 표로 보여 줍니다.</div>
+<p class="lead">결산 일정과 항목별 완료 여부를 한 화면에서 보는 개인 학습 사이트 · 가상 회사 · 합성 데이터 사용</p>
+
+<div class="flow" id="flow">불러오는 중…</div>
+<div class="kpi" id="kpi"></div>
+
+<div class="wrap"><table>
+  <thead><tr><th>#</th><th>상태</th><th>항목명</th><th>담당역할</th><th>예정일</th><th>결과물등록일</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table></div>
+
+<details><summary id="exSum">제외·중복</summary><div class="wrap" style="margin-top:8px"><table>
+  <thead><tr><th>원천 행</th><th>항목명</th><th>예정일</th><th>이유</th></tr></thead>
+  <tbody id="ex"></tbody>
+</table></div></details>
+
+<div class="tools">
+  <button id="down">보이는 결과 CSV 내려받기</button>
+  <label class="btn">CSV 다시 불러와 대조<input type="file" id="up" accept=".csv" hidden></label>
+  <span id="check"></span>
+</div>
+<p class="lead">판정 규칙: 결과물 등록됨 = 완료 · 없고 예정일이 기준일 이후(당일 포함) = 진행 · 없고 예정일 지남 = 지연 — <a href="https://github.com/kwang1541/close-board/blob/main/docs/data/RULES.md">규칙 전문</a></p>
 </main>
+<script src="app.js"></script>
+<script>
+(async () => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const show = v => v === "" ? "<i>(빈칸)</i>" : esc(v);
+  try {
+    const [csv, meta] = await Promise.all([
+      fetch("data/close_schedule.csv").then(r => r.text()),
+      fetch("data/meta.json").then(r => r.json())
+    ]);
+    const today = meta["기준일"];
+    const r = CloseBoard.process(CloseBoard.parseCSV(csv), today);
+    $("flow").innerHTML = `원천 ${r.raw}건 → 제외 ${r.excluded.length} · 중복 ${r.dup.length} → 표시 ${r.shown.length}건` +
+      `<small>기준일 ${today} · 출처 ${esc(meta["출처"])}</small>`;
+    const n = s => r.shown.filter(x => x.상태 === s).length;
+    $("kpi").innerHTML = ["지연", "진행", "완료"].map(s => `<span class="s-${s}">${s} ${n(s)}</span>`).join("");
+    $("rows").innerHTML = r.shown.map((x, i) =>
+      `<tr><td>${i + 1}</td><td><span class="tag s-${x.상태}">${x.상태}</span></td><td>${esc(x.항목명)}</td>` +
+      `<td>${esc(x.담당역할)}</td><td>${x.예정일}</td><td>${x.결과물등록일 || "-"}</td></tr>`).join("");
+    const out = [...r.excluded.map(x => ({ ...x, k: "제외" })), ...r.dup.map(x => ({ ...x, k: "중복" }))];
+    $("exSum").textContent = `제외 ${r.excluded.length} · 중복 ${r.dup.length} — 이유 보기`;
+    $("ex").innerHTML = out.map(x =>
+      `<tr><td>${x.줄}</td><td>${show(x.항목명.replace(/^ +| +$/g, m => "␣".repeat(m.length)))}</td><td>${show(x.예정일)}</td><td>${x.k} — ${esc(x.이유)}</td></tr>`).join("");
+
+    $("down").onclick = () => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([CloseBoard.toCSV(r.shown)], { type: "text/csv" }));
+      a.download = `close-board_${today}.csv`; a.click();
+    };
+    $("up").onchange = async e => {
+      const f = e.target.files[0]; if (!f) return;
+      const back = CloseBoard.parseCSV(await f.text());   // 파일은 브라우저 안에서만 읽는다
+      const same = back.length === r.shown.length &&
+        back.every((x, i) => x.항목명 === r.shown[i].항목명 && x.상태 === r.shown[i].상태);
+      $("check").textContent = same
+        ? `✓ 다시 불러온 ${back.length}건 — 화면과 같은 건수·같은 순서`
+        : `✗ 다시 불러온 ${back.length}건 — 화면(${r.shown.length}건)과 다름`;
+    };
+  } catch (err) {
+    $("flow").textContent = "데이터를 불러오지 못했습니다: " + err.message;
+  }
+})();
+</script>
 </body>
 </html>
