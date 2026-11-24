@@ -1,0 +1,67 @@
+name: 검사 후 배포
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 22 * * *" # UTC 22:17 = 한국 시각 매일 07:17 (정각은 붐벼서 비켜 잡음)
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 검사표 10줄 돌리기
+        run: node tests/check.js --json check.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: check
+          path: check.json
+
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: check
+      - name: 화면에 갱신 시각·검사 결과·판 적기
+        run: |
+          export TODAY=$(TZ=Asia/Seoul date +%Y-%m-%d)
+          export NOW=$(TZ=Asia/Seoul date "+%Y-%m-%d %H:%M")
+          node -e '
+            const fs = require("fs");
+            const c = JSON.parse(fs.readFileSync("check.json", "utf8"));
+            fs.writeFileSync("docs/data/build.json", JSON.stringify({
+              기준일: process.env.TODAY,
+              갱신: process.env.NOW,
+              검사: c.통과 + "/" + c.전체,
+              판: process.env.GITHUB_SHA.slice(0, 7)
+            }));
+          '
+          cat docs/data/build.json
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4
