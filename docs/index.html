@@ -56,6 +56,7 @@ button,label.btn{font:inherit;padding:6px 14px;border-radius:8px;border:1px soli
   <span id="check"></span>
 </div>
 <p class="lead">판정 규칙: 결과물 등록됨 = 완료 · 없고 예정일이 기준일 이후(당일 포함) = 진행 · 없고 예정일 지남 = 지연 — <a href="https://github.com/kwang1541/close-board/blob/main/docs/data/RULES.md">규칙 전문</a></p>
+<p class="lead" id="build" style="border-top:1px solid var(--line);padding-top:12px;font-size:13px"></p>
 </main>
 <script src="app.js"></script>
 <script>
@@ -64,11 +65,16 @@ button,label.btn{font:inherit;padding:6px 14px;border-radius:8px;border:1px soli
   const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
   const show = v => v === "" ? "<i>(빈칸)</i>" : esc(v);
   try {
-    const [csv, meta] = await Promise.all([
+    const [csv, meta, build] = await Promise.all([
       fetch("data/close_schedule.csv").then(r => r.text()),
-      fetch("data/meta.json").then(r => r.json())
+      fetch("data/meta.json").then(r => r.json()),
+      fetch("data/build.json", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null)
     ]);
-    const today = meta["기준일"];
+    // 배포 때 Actions 가 만든 build.json 이 있으면 기준일 = 오늘(한국 시각), 없으면(로컬) meta.json 고정 기준일
+    const today = (build && build["기준일"]) || meta["기준일"];
+    $("build").textContent = build
+      ? `마지막 갱신 ${build["갱신"]} · 검사 ${build["검사"]} 통과 · 판 ${build["판"]} · 매일 아침 자동 갱신`
+      : "로컬 미리보기 — 자동 갱신 정보는 배포된 사이트에서 보입니다";
     const r = CloseBoard.process(CloseBoard.parseCSV(csv), today);
     $("flow").innerHTML = `원천 ${r.raw}건 → 제외 ${r.excluded.length} · 중복 ${r.dup.length} → 표시 ${r.shown.length}건` +
       `<small>기준일 ${today} · 출처 ${esc(meta["출처"])}</small>`;
